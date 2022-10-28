@@ -25,7 +25,7 @@ fi
 CFLAGS=
 LDFLAGS=
 musl_configure=
-fdclone_configure=
+fdclone_makeargs=
 fdclone_patch="$(pwd)/fdclone-${fdclone_version}.patch"
 curses_configure=
 curses_patch="$(pwd)/netbsd-curses-${netbsd_curses_version}.patch"
@@ -47,7 +47,6 @@ case $arch in
     i486)
 	dockcross_arch=linux-x86
 	musl_configure="--target i386-linux-gnu RANLIB=ranlib"
-	fdclone_configure="--target i386-unknown-linux-gnu"
 	CFLAGS="-march=i486 -m32"
 	LDFLAGS="-m32"
 	link_hack=-melf_i386
@@ -65,7 +64,6 @@ case $arch in
     powerpc) #broken
 	dockcross_arch=linux-ppc64le
 	musl_configure="--target powerpc-linux-gnu"
-	fdclone_configure="--target powerpc-uknown-linux-gnu"
 	CFLAGS="-m32 -mbig -mlong-double-64"
 	link_hack=-melf_powerpc
 	;;
@@ -178,7 +176,7 @@ echo "= building fdclone"
 
 fdclone_dir="FD-${fdclone_version}"
 (cd "$fdclone_dir" && patch -p1 < "$fdclone_patch")
-./dockcross bash -c "cd '${fdclone_dir}' && make 'CC=$CC' 'CFLAGS=-static $CFLAGS' 'LDFLAGS=-static $LDFLAGS' HOSTCC=gcc HOSTCFLAGS= HOSTLDFLAGS= ${fdclone_configure}"
+./dockcross bash -c "cd '${fdclone_dir}' && make 'CC=$CC' 'CFLAGS=-static $CFLAGS' 'LDFLAGS=-static $LDFLAGS' HOSTCC=gcc HOSTCFLAGS= HOSTLDFLAGS= ${fdclone_makeargs}"
 
 cd "${curdir}"
 

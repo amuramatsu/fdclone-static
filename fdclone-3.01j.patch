@@ -1,6 +1,6 @@
 diff -ruN FD-3.01j.orig/dosdisk.c FD-3.01j/dosdisk.c
 --- FD-3.01j.orig/dosdisk.c	2019-07-27 00:00:00.000000000 +0900
-+++ FD-3.01j/dosdisk.c	2022-10-28 14:43:12.000000000 +0900
++++ FD-3.01j/dosdisk.c	2022-10-28 16:26:16.000000000 +0900
 @@ -22,7 +22,7 @@
  #ifdef	LINUX
  #include "mntinfo.h"
@@ -10,9 +10,21 @@ diff -ruN FD-3.01j.orig/dosdisk.c FD-3.01j/dosdisk.c
  # ifndef	BLKFLSBUF
  # include <linux/fs.h>
  # endif
+diff -ruN FD-3.01j.orig/dosdisk.h FD-3.01j/dosdisk.h
+--- FD-3.01j.orig/dosdisk.h	2019-07-27 00:00:00.000000000 +0900
++++ FD-3.01j/dosdisk.h	2022-10-28 16:26:33.000000000 +0900
+@@ -51,7 +51,7 @@
+ || defined (JCCBSD) || defined (FREEBSD) \
+ || defined (NETBSD) || defined (BSDOS) || defined (BOW) \
+ || defined (OPENBSD) || defined (MINIX) || defined (ORG_386BSD))
+-#define	HDDMOUNT
++/* #define	HDDMOUNT */
+ #endif
+ 
+ typedef struct _bpb_t {
 diff -ruN FD-3.01j.orig/machine.h FD-3.01j/machine.h
 --- FD-3.01j.orig/machine.h	2019-07-27 00:00:00.000000000 +0900
-+++ FD-3.01j/machine.h	2022-10-28 15:07:09.000000000 +0900
++++ FD-3.01j/machine.h	2022-10-28 16:26:16.000000000 +0900
 @@ -562,7 +562,7 @@
  # if	defined (Slackware)
  # define	TERMCAPLIB	"-ltermcap"
