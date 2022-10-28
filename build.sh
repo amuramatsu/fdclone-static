@@ -1,0 +1,214 @@
+#! /bin/sh
+#
+# build script with dockcross
+#
+
+fdclone_version="3.01j"
+fdclone_sha1="f223051eef1070d4ad84d8545fc05e294719a7de"
+netbsd_curses_version="0.3.2"
+netbsd_curses_sha1="ffffe30ed60ef619e727260ec4994f7bf819728e"
+musl_version="1.2.3"
+musl_sha1="3b6b673196c2dc96b24c5d6028c5fa922457dd26"
+
+release_dir="fdclone-${fdclone_version}_musl-${musl_version}-${netbsd_curses_version}"
+
+if [ -z "$1" ]; then
+    echo "Usage: $0 ARCH"
+    echo ""
+    echo "   supported ARCHes are"
+    echo "     arm64, armhf, armel, i486, amd64, mips, mipsel,"
+    echo "     powerpc, ppc64el, s390x"
+    echo ""
+    exit 1
+fi
+
+CFLAGS=
+LDFLAGS=
+musl_configure=
+fdclone_configure=
+fdclone_patch="$(pwd)/fdclone-${fdclone_version}.patch"
+curses_configure=
+curses_patch="$(pwd)/netbsd-curses-${netbsd_curses_version}.patch"
+strip=
+arch="$1"
+link_hack=
+case $arch in
+    arm64)
+	dockcross_arch=linux-arm64
+	;;
+    armhf)
+	dockcross_arch=linux-armv7
+	CFLAGS="-mfloat-abi=hard"
+	;;
+    armel)
+	dockcross_arch=linux-armv5
+    	CFLAGS="-mfloat-abi=soft"
+    	;;
+    i486)
+	dockcross_arch=linux-x86
+	musl_configure="--target i386-linux-gnu RANLIB=ranlib"
+	fdclone_configure="--target i386-unknown-linux-gnu"
+	CFLAGS="-march=i486 -m32"
+	LDFLAGS="-m32"
+	link_hack=-melf_i386
+	strip=strip
+	;;
+    amd64)
+	dockcross_arch=linux-x64
+	;;
+    mips) 
+	dockcross_arch=linux-mips
+	;;
+    mipsel)
+	dockcross_arch=linux-mipsel
+	;;
+    powerpc) #broken
+	dockcross_arch=linux-ppc64le
+	musl_configure="--target powerpc-linux-gnu"
+	fdclone_configure="--target powerpc-uknown-linux-gnu"
+	CFLAGS="-m32 -mbig -mlong-double-64"
+	link_hack=-melf_powerpc
+	;;
+    ppc64el)
+	dockcross_arch=linux-ppc64le
+	CFLAGS="-mlong-double-64"
+	;;
+    s390x)
+	dockcross_arch=linux-s390x
+	;;
+    *)
+	echo "unknown archtecture $arch"
+	exit 1
+	;;
+esac
+
+build_dir="$(pwd)/build"
+archives_dir="$(pwd)/archives"
+
+sha1_digest() {
+    FILE="$1"
+    shasum=
+    for bindir in /usr/bin /usr/local/bin /usr/pkg/bin /opt/local/bin; do
+	if [ -x "${bindir}/shasum" ]; then
+	    shasum="${bindir}/shasum"
+	    break
+	fi
+    done
+    if [ x"$shasum" = x"" ]; then
+	shasum='openssl dgst -sha1 -r'
+    fi
+    $shasum "$FILE" | awk '{print $1}'
+}
+
+download() {
+    URL="$1"
+    SHA="$2"
+    [ -d "$archives_dir" ] || mkdir -p "$archives_dir"
+    if [ x"$3" = x"" ]; then
+	filename="$(basename "$URL")"
+    else
+	filename="$3"
+    fi
+    if [ -r "${archives_dir}/${filename}" ]; then
+	digest=$(sha1_digest "${archives_dir}/${filename}")
+	if [ x"$digest" = x"$SHA" ]; then
+	    return
+	fi
+	rm -f "${archives_dir}/${filename}"
+    fi
+    curl -L -o "${archives_dir}/${filename}" "${URL}"
+}
+
+if [ -d "$build_dir" ]; then
+  echo "= removing previous build directory"
+  rm -rf "$build_dir"
+fi
+
+mkdir -p "$build_dir"
+curdir="$(pwd)"
+cd "$build_dir"
+working_dir="$(pwd)"
+
+docker run --rm "dockcross/${dockcross_arch}" > ./dockcross
+chmod +x dockcross
+./dockcross update # update dockcross environment!
+dockerwork_dir=$(./dockcross bash -c 'echo -n $(pwd)')
+
+# download tarballs
+echo "= downloading fdclone"
+download "https://hp.vector.co.jp/authors/VA012337/soft/fd/FD-${fdclone_version}.tar.gz" $fdclone_sha1 "FD-${fdclone_version}.tar.gz"
+
+echo "= extracting fdclone"
+gzip -cd "${archives_dir}/FD-${fdclone_version}.tar.gz" | tar xf - 
+
+echo "= downloading musl"
+download "http://www.musl-libc.org/releases/musl-${musl_version}.tar.gz" $musl_sha1
+
+echo "= extracting musl"
+gzip -cd "${archives_dir}/musl-${musl_version}.tar.gz" | tar xf -
+
+echo "= downloading netbsd-curses"
+download "http://ftp.barfooze.de/pub/sabotage/tarballs/netbsd-curses-${netbsd_curses_version}.tar.xz" $netbsd_curses_sha1
+
+echo "= extracting netbsd-curses"
+xz -cd "${archives_dir}/netbsd-curses-${netbsd_curses_version}.tar.xz" | tar xf -
+
+echo "= building musl"
+
+install_dir="${dockerwork_dir}/musl-install"
+musl_dir="musl-${musl_version}"
+
+./dockcross bash -c "cd ${musl_dir} && ./configure '--prefix=${install_dir}' --disable-shared ${musl_configure} 'CFLAGS=$CFLAGS'"
+./dockcross bash -c "cd ${musl_dir} && make install"
+
+echo "= setting CC to musl-gcc"
+CC="${dockerwork_dir}/musl-install/bin/musl-gcc"
+if [ ! -z "$link_hack" ]; then
+    echo "= hack for link with musl-gcc"
+    sed -i.bak "s/-dynamic-linker/$link_hack -dynamic-linker/" "${working_dir}/musl-install/lib/musl-gcc.specs"
+fi
+
+echo "= building netbsd-curses"
+
+curses_dir="netbsd-curses-${netbsd_curses_version}"
+(cd "$curses_dir" && patch -p1 < "$curses_patch")
+./dockcross bash -c "cd '${curses_dir}' && make 'CC=$CC' 'HOSTCC=gcc' 'CFLAGS=-Os -std=gnu11 $CFLAGS' 'LDFLAGS=-static $LDFLAGS' 'PREFIX=${install_dir}' all-static install-static"
+
+echo "= building fdclone"
+
+fdclone_dir="FD-${fdclone_version}"
+(cd "$fdclone_dir" && patch -p1 < "$fdclone_patch")
+./dockcross bash -c "cd '${fdclone_dir}' && make 'CC=$CC' 'CFLAGS=-static $CFLAGS' 'LDFLAGS=-static $LDFLAGS' HOSTCC=gcc HOSTCFLAGS= HOSTLDFLAGS= ${fdclone_configure}"
+
+cd "${curdir}"
+
+[ -d "${release_dir}" ] || mkdir -p "${release_dir}"
+
+echo "= copy fdclone binary"
+cp "${build_dir}/${fdclone_dir}/FAQ"          "${release_dir}"
+cp "${build_dir}/${fdclone_dir}/FAQ.eng"      "${release_dir}"
+cp "${build_dir}/${fdclone_dir}/LICENSES"     "${release_dir}"
+cp "${build_dir}/${fdclone_dir}/LICENSES.eng" "${release_dir}"
+cp "${build_dir}/${fdclone_dir}/fd-cat.C"     "${release_dir}"
+cp "${build_dir}/${fdclone_dir}/fd-cat.ja"    "${release_dir}"
+cp "${build_dir}/${fdclone_dir}/fd-unicd.tbl" "${release_dir}"
+cp "${build_dir}/${fdclone_dir}/fd-dict.tbl"  "${release_dir}"
+cp "${build_dir}/${fdclone_dir}/_fdrc"        "${release_dir}"
+cp "${build_dir}/${fdclone_dir}/fd.cat"       "${release_dir}/fd.1j"
+cp "${build_dir}/${fdclone_dir}/fd_e.cat"     "${release_dir}/fd.1"
+cp "${build_dir}/${fdclone_dir}/fd"           "${release_dir}/fd-${arch}"
+if [ x"$strip" = x"" ]; then
+    "${build_dir}/dockcross" bash -c 'STRIP=$(echo $CC|sed s/-gcc\$/-strip/); $STRIP -s '"'${release_dir}/fd-${arch}'"
+else
+    "${build_dir}/dockcross" bash -c "$strip -s '${release_dir}/fd-${arch}'"
+fi
+
+# remove ACL at macOS
+uname_s=$(uname -s)
+if [ x"$uname_s" = x"Darwin" ]; then
+    for a in com.docker.owner com.docker.grpcfuse.ownership; do
+        xattr -d "$a" "${release_dir}/fd-${arch}" >/dev/null 2>&1
+    done
+fi
+
+echo "= done"
