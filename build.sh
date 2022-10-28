@@ -10,7 +10,7 @@ netbsd_curses_sha1="ffffe30ed60ef619e727260ec4994f7bf819728e"
 musl_version="1.2.3"
 musl_sha1="3b6b673196c2dc96b24c5d6028c5fa922457dd26"
 
-release_dir="fdclone-${fdclone_version}_musl-${musl_version}-${netbsd_curses_version}"
+release_dir="fdclone-static-${fdclone_version}_musl-${musl_version}-${netbsd_curses_version}"
 
 if [ -z "$1" ]; then
     echo "Usage: $0 ARCH"

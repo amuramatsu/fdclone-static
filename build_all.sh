@@ -11,5 +11,5 @@
 ./build.sh ppc64el
 ./build.sh s390x
 
-dist=$(echo fdclone-*_musl-*)
+dist=$(echo fdclone-static-*_musl-*)
 tar zcf "${dist}.tar.gz" "./${dist}"
