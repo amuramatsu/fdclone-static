@@ -59,7 +59,7 @@ case $arch in
 	dockcross_arch=linux-mips
 	;;
     mipsel)
-	dockcross_arch=linux-mipsel
+	dockcross_arch=linux-mipsel-lts
 	;;
     powerpc) #broken
 	dockcross_arch=linux-ppc64le
