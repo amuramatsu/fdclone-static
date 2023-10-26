@@ -7,8 +7,8 @@ fdclone_version="3.01j"
 fdclone_sha1="f223051eef1070d4ad84d8545fc05e294719a7de"
 netbsd_curses_version="0.3.2"
 netbsd_curses_sha1="ffffe30ed60ef619e727260ec4994f7bf819728e"
-musl_version="1.2.3"
-musl_sha1="3b6b673196c2dc96b24c5d6028c5fa922457dd26"
+musl_version="1.2.4"
+musl_sha1="78eb982244b857dbacb2ead25cc0f631ce44204d"
 
 release_dir="fdclone-static-${fdclone_version}_musl-${musl_version}-${netbsd_curses_version}"
 
