@@ -45,7 +45,8 @@ case $arch in
     	CFLAGS="-mfloat-abi=soft"
     	;;
     i486)
-	dockcross_arch=linux-x86
+	#dockcross_arch=linux-x86
+	dockcross_arch=linux-i686
 	musl_configure="--target i386-linux-gnu RANLIB=ranlib"
 	CFLAGS="-march=i486 -m32"
 	LDFLAGS="-m32"
