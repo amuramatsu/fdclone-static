@@ -13,6 +13,8 @@ musl_patch1="https://www.openwall.com/lists/musl/2025/02/13/1/1"
 musl_patch1_sha1="83b881fbe8a5d4d340977723adda4f8ac66592f0"
 musl_patch2="https://www.openwall.com/lists/musl/2025/02/13/1/2"
 musl_patch2_sha1="0ceaa0467429057efce879b6346efa4f58c7cd4d"
+alt_cannadic="110208"
+alt_cannadic_sha1="2f013ad1d2546dda6554e99ae9ac22749dda87a5"
 
 release_dir="fdclone-static-${fdclone_version}_musl-${musl_version}-${netbsd_curses_version}"
 
@@ -147,6 +149,12 @@ download "http://www.unixusers.net/authors/VA012337/soft/fd/FD-${fdclone_version
 echo "= extracting fdclone"
 gzip -cd "${archives_dir}/FD-${fdclone_version}.tar.gz" | tar xf - 
 
+echo "= downloading alt-cannadic"
+download "https://ftp.iij.ad.jp/pub/osdn.jp/alt-cannadic/50881/alt-cannadic-${alt_cannadic}.tar.bz2" $alt_cannadic_sha1
+
+echo "= extracting alt-cannadic"
+bzip2 -cd "${archives_dir}/alt-cannadic-${alt_cannadic}.tar.bz2" | tar xf - 
+
 echo "= downloading musl"
 download "http://www.musl-libc.org/releases/musl-${musl_version}.tar.gz" $musl_sha1
 download $musl_patch1 $musl_patch1_sha1 musl.patch1
@@ -196,6 +204,11 @@ echo "#define _NOCATALOG"   >> "${fdclone_dir}/config.hin"
 echo "#define _NOUNICDTBL"  >> "${fdclone_dir}/config.hin"
 ./dockcross bash -c "cd '${fdclone_dir}' && make 'CC=$CC' 'CFLAGS=-static $CFLAGS' 'LDFLAGS=-static $LDFLAGS' HOSTCC=gcc HOSTCFLAGS= HOSTLDFLAGS= ${fdclone_makeargs}"
 
+alt_cannadic_dir="alt-cannadic-${alt_cannadic}"
+mv "${build_dir}/${fdclone_dir}/fd-dict.tbl" \
+   "${build_dir}/${fdclone_dir}/fd-dict.tan.tbl"
+./dockcross bash -c "cd '${fdclone_dir}' && ln -sf '../${alt_cannadic_dir}'/*.ctd . && make rmdict && make 'DICTSRC=gtankan.ctd gt_okuri.ctd gcanna.ctd gcannaf.ctd' 'CC=$CC' 'CFLAGS=-static $CFLAGS' 'LDFLAGS=-static $LDFLAGS' HOSTCC=gcc HOSTCFLAGS= HOSTLDFLAGS= ${fdclone_makeargs}"
+
 cd "${curdir}"
 
 [ -d "${release_dir}" ] || mkdir -p "${release_dir}"
@@ -205,13 +218,16 @@ cp "${build_dir}/${fdclone_dir}/FAQ"          "${release_dir}"
 cp "${build_dir}/${fdclone_dir}/FAQ.eng"      "${release_dir}"
 cp "${build_dir}/${fdclone_dir}/LICENSES"     "${release_dir}"
 cp "${build_dir}/${fdclone_dir}/LICENSES.eng" "${release_dir}"
-cp "${build_dir}/${fdclone_dir}/fd-dict.tbl"  "${release_dir}"
+cp "${build_dir}/${fdclone_dir}/fd-dict.tan.tbl" "${release_dir}"
+cp "${build_dir}/${fdclone_dir}/fd-dict.tbl"  "${release_dir}/fd-dict.ren.tbl"
 cp "${build_dir}/${fdclone_dir}/_fdrc"        "${release_dir}/_fd2rc"
 cp "${build_dir}/${fdclone_dir}/fd.cat"       "${release_dir}/fd.jman"
 cp "${build_dir}/${fdclone_dir}/fd_e.cat"     "${release_dir}/fd.man"
 cp "${build_dir}/${fdclone_dir}/fd.man"       "${release_dir}/fd.1j"
 cp "${build_dir}/${fdclone_dir}/fd_e.man"     "${release_dir}/fd.1"
 cp "${build_dir}/${fdclone_dir}/fd"           "${release_dir}/fd-${arch}"
+cp "${build_dir}/${alt_cannadic_dir}/COPYING" "${release_dir}/COPYING.fd-dict.ren.tbl"
+
 if [ x"$strip" = x"" ]; then
     "${build_dir}/dockcross" bash -c 'STRIP=$(echo $CC|sed s/-gcc\$/-strip/); $STRIP -s '"'${release_dir}/fd-${arch}'"
 else
