@@ -7,12 +7,12 @@ fdclone_version="3.01j"
 fdclone_sha1="f223051eef1070d4ad84d8545fc05e294719a7de"
 netbsd_curses_version="0.3.2"
 netbsd_curses_sha1="ffffe30ed60ef619e727260ec4994f7bf819728e"
-musl_version="1.2.5"
-musl_sha1="36210d3423172a40ddcf83c762207c5f760b60a6"
-musl_patch1="https://www.openwall.com/lists/musl/2025/02/13/1/1"
-musl_patch1_sha1="83b881fbe8a5d4d340977723adda4f8ac66592f0"
-musl_patch2="https://www.openwall.com/lists/musl/2025/02/13/1/2"
-musl_patch2_sha1="0ceaa0467429057efce879b6346efa4f58c7cd4d"
+musl_version="1.2.6"
+musl_sha1="d52bd74e07ae3d4057787585753580fc7479289f"
+musl_patch1="https://www.openwall.com/lists/musl/2026/04/03/2/1"
+musl_patch1_sha1="cfae548113bd1e0eeb21b2b95b6d927425aa274e"
+musl_patch2="https://www.openwall.com/lists/musl/2026/04/10/3/1"
+musl_patch2_sha1="475cd15507b441b41175d2e33ea30c086b15c2aa"
 alt_cannadic="110208"
 alt_cannadic_sha1="2f013ad1d2546dda6554e99ae9ac22749dda87a5"
 
@@ -186,11 +186,21 @@ if [ ! -z "$link_hack" ]; then
     sed -i.bak "s/-dynamic-linker/$link_hack -dynamic-linker/" "${working_dir}/musl-install/lib/musl-gcc.specs"
 fi
 
+echo "= sync and sleep"
+
+./dockcross bash -c "sync; sync"
+sync; sync; sleep 1
+
 echo "= building netbsd-curses"
 
 curses_dir="netbsd-curses-${netbsd_curses_version}"
 (cd "$curses_dir" && patch -p1 < "$curses_patch")
 ./dockcross bash -c "cd '${curses_dir}' && make 'CC=$CC' 'HOSTCC=gcc' 'CFLAGS=-Os -std=gnu11 $CFLAGS' 'LDFLAGS=-static $LDFLAGS' 'PREFIX=${install_dir}' all-static install-static"
+
+echo "= sync and sleep"
+
+./dockcross bash -c "sync; sync"
+sync; sync; sleep 1
 
 echo "= building fdclone"
 
